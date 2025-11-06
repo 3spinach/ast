@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional
 from torch.utils.data import Dataset
 import random
+torchaudio.set_audio_backend("soundfile")
 
 def make_index_dict(label_csv):
     index_lookup = {}
