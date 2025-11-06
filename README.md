@@ -1,3 +1,4 @@
+> **Fork Notice:** This is a modified version of [ast](https://github.com/YuanGongND/ast) by YuanGongND with modifications for my research project.
 
 # AST: Audio Spectrogram Transformer  
  - [News](#News)
