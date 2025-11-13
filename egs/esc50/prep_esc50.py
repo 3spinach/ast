@@ -35,7 +35,7 @@ def get_immediate_subdirectories(a_dir):
 def get_immediate_files(a_dir):
     return [name for name in os.listdir(a_dir) if os.path.isfile(os.path.join(a_dir, name))]
 
-# downlooad esc50
+# download esc50
 # dataset provided in https://github.com/karolpiczak/ESC-50
 if os.path.exists('./data/ESC-50-master') == False:
     esc50_url = 'https://github.com/karoldvl/ESC-50/archive/master.zip'
