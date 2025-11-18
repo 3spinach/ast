@@ -29,7 +29,7 @@ freqm=24
 timem=96
 mixup=0
 epoch=25
-batch_size=32
+batch_size=24
 fstride=10
 tstride=10
 
