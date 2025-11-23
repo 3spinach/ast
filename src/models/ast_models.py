@@ -67,9 +67,10 @@ class ASTModel(nn.Module):
                 self.v = timm.create_model('vit_deit_base_distilled_patch16_384', pretrained=imagenet_pretrain)
             else:
                 raise Exception('Model size must be one of tiny224, small224, base224, base384.')
-            self.original_num_patches = self.v.patch_embed.num_patches
-            self.oringal_hw = int(self.original_num_patches ** 0.5)
+            self.original_num_patches = self.v.patch_embed.num_patches # For base384: 576
+            self.oringal_hw = int(self.original_num_patches ** 0.5) # Height/Width = 24, NOT the height of a patch
             self.original_embedding_dim = self.v.pos_embed.shape[2]
+            # create classification head
             self.mlp_head = nn.Sequential(nn.LayerNorm(self.original_embedding_dim), nn.Linear(self.original_embedding_dim, label_dim))
 
             # automatcially get the intermediate shape
@@ -80,14 +81,14 @@ class ASTModel(nn.Module):
                 print('frequncey stride={:d}, time stride={:d}'.format(fstride, tstride))
                 print('number of patches={:d}'.format(num_patches))
 
-            # the linear projection layer
+            # PATCH EMBEDDING, the linear projection layer
             new_proj = torch.nn.Conv2d(1, self.original_embedding_dim, kernel_size=(16, 16), stride=(fstride, tstride))
             if imagenet_pretrain == True:
                 new_proj.weight = torch.nn.Parameter(torch.sum(self.v.patch_embed.proj.weight, dim=1).unsqueeze(1))
                 new_proj.bias = self.v.patch_embed.proj.bias
             self.v.patch_embed.proj = new_proj
 
-            # the positional embedding
+            # POSITIONAL EMBEDDING
             if imagenet_pretrain == True:
                 # get the positional embedding from deit model, skip the first two tokens (cls token and distillation token), reshape it to original 2D shape (24*24).
                 new_pos_embed = self.v.pos_embed[:, 2:, :].detach().reshape(1, self.original_num_patches, self.original_embedding_dim).transpose(1, 2).reshape(1, self.original_embedding_dim, self.oringal_hw, self.oringal_hw)
@@ -168,21 +169,27 @@ class ASTModel(nn.Module):
         :return: prediction
         """
         # expect input x = (batch_size, time_frame_num, frequency_bins), e.g., (12, 1024, 128)
-        x = x.unsqueeze(1)
-        x = x.transpose(2, 3)
+        x = x.unsqueeze(1) # Add a channel dimension, e.g., (12, 1, 1024, 128)
+        x = x.transpose(2, 3) # Correct format, e.g., (12, 1, 128, 1024)
 
+        # Extract patch embeddings
         B = x.shape[0]
-        x = self.v.patch_embed(x)
+        x = self.v.patch_embed(x) # (batch, num_patches, embeddings_dim)
+        # Add CLS and distillation tokens
         cls_tokens = self.v.cls_token.expand(B, -1, -1)
         dist_token = self.v.dist_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, dist_token, x), dim=1)
+        # Add positional embeddings
         x = x + self.v.pos_embed
+        # Dropout
         x = self.v.pos_drop(x)
         for blk in self.v.blocks:
             x = blk(x)
+        # Final layer normalization
         x = self.v.norm(x)
+        # Average the two CLS tokens
         x = (x[:, 0] + x[:, 1]) / 2
-
+        # Classification head
         x = self.mlp_head(x)
         return x
 
