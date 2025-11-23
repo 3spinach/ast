@@ -19,7 +19,7 @@ from torch.utils.data import Dataset
 import random
 torchaudio.set_audio_backend("soundfile")
 
-def make_index_dict(label_csv):
+def make_index_dict(label_csv): # Craete a mapping from label IDs(mid) to indices
     index_lookup = {}
     with open(label_csv, 'r') as f:
         csv_reader = csv.DictReader(f)
@@ -29,7 +29,7 @@ def make_index_dict(label_csv):
             line_count += 1
     return index_lookup
 
-def make_name_dict(label_csv):
+def make_name_dict(label_csv): # Create a mapping from indices to human-readable lable names
     name_lookup = {}
     with open(label_csv, 'r') as f:
         csv_reader = csv.DictReader(f)
@@ -39,14 +39,14 @@ def make_name_dict(label_csv):
             line_count += 1
     return name_lookup
 
-def lookup_list(index_list, label_csv):
+def lookup_list(index_list, label_csv): # Converts a list of indices to label names
     label_list = []
     table = make_name_dict(label_csv)
     for item in index_list:
         label_list.append(table[item])
     return label_list
 
-def preemphasis(signal,coeff=0.97):
+def preemphasis(signal,coeff=0.97): # Apply a pre-emphasis filter to audio signals
     """perform preemphasis on the input signal.
 
     :param signal: The signal to filter.
@@ -96,8 +96,8 @@ class AudiosetDataset(Dataset):
         self.label_num = len(self.index_dict)
         print('number of classes is {:d}'.format(self.label_num))
 
-    def _wav2fbank(self, filename, filename2=None):
-        # mixup
+    def _wav2fbank(self, filename, filename2=None): # Convert audio waveform to logMel filterbank features
+        # mixup for data augmentation
         if filename2 == None:
             waveform, sr = torchaudio.load(filename)
             waveform = waveform - waveform.mean()
@@ -106,6 +106,7 @@ class AudiosetDataset(Dataset):
             waveform1, sr = torchaudio.load(filename)
             waveform2, _ = torchaudio.load(filename2)
 
+            # Center the waveform
             waveform1 = waveform1 - waveform1.mean()
             waveform2 = waveform2 - waveform2.mean()
 
@@ -185,6 +186,7 @@ class AudiosetDataset(Dataset):
             label_indices = torch.FloatTensor(label_indices)
 
         # SpecAug, not do for eval set
+        # To prevent the model from relying too much on specific frequencies/time periods and improve generalization
         freqm = torchaudio.transforms.FrequencyMasking(self.freqm)
         timem = torchaudio.transforms.TimeMasking(self.timem)
         fbank = torch.transpose(fbank, 0, 1)
