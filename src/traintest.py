@@ -91,7 +91,7 @@ def train(audio_model, train_loader, test_loader, args):
     #     raise ValueError('unknown dataset, dataset should be in [audioset, speechcommands, esc50]')
 
     epoch += 1
-    # for amp
+    # automatic mixed precision: float32 -> float16
     scaler = GradScaler()
 
     print("current #steps=%s, #epochs=%s" % (global_step, epoch))
@@ -122,7 +122,8 @@ def train(audio_model, train_loader, test_loader, args):
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = warm_lr
                 print('warm-up learning rate is {:f}'.format(optimizer.param_groups[0]['lr']))
-
+                
+            # 1. Forward pass with autocast (mixed precision)
             with autocast():
                 audio_output = audio_model(audio_input)
                 if isinstance(loss_fn, torch.nn.CrossEntropyLoss):
@@ -136,9 +137,12 @@ def train(audio_model, train_loader, test_loader, args):
             # optimizer.step()
 
             # optimiztion if amp is used
+            # 2. Backward pass with gradient scaling
             optimizer.zero_grad()
             scaler.scale(loss).backward()
+            # 3. Unscale gradients back to original magnitude
             scaler.step(optimizer)
+            # 4. Update scale factor for next iteraion
             scaler.update()
 
             # record loss
