@@ -58,7 +58,7 @@ def train(audio_model, train_loader, test_loader, args):
         loss_fn = nn.BCEWithLogitsLoss()
     elif args.loss == 'CE': # Single-label classification, One probability distribution, Softmax
         loss_fn = nn.CrossEntropyLoss()
-    warmup = args.warmup
+    warmup = args.warmup # Whether to use learning rate warm-up
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, list(range(args.lrscheduler_start, 1000, args.lrscheduler_step)),gamma=args.lrscheduler_decay)
     args.loss_fn = loss_fn
     print('now training with {:s}, main metrics: {:s}, loss function: {:s}, learning rate scheduler: {:s}'.format(str(args.dataset), str(main_metrics), str(loss_fn), str(scheduler)))
@@ -106,9 +106,10 @@ def train(audio_model, train_loader, test_loader, args):
         print(datetime.datetime.now())
         print("current #epochs=%s, #steps=%s" % (epoch, global_step))
 
+        # Training Batch Loop
         for i, (audio_input, labels) in enumerate(train_loader):
 
-            B = audio_input.size(0)
+            B = audio_input.size(0) # Batch size
             audio_input = audio_input.to(device, non_blocking=True)
             labels = labels.to(device, non_blocking=True)
 
@@ -170,6 +171,7 @@ def train(audio_model, train_loader, test_loader, args):
             end_time = time.time()
             global_step += 1
 
+        # Validation after each epoch
         print('start validation')
         stats, valid_loss = validate(audio_model, test_loader, args, epoch)
 
@@ -228,6 +230,7 @@ def train(audio_model, train_loader, test_loader, args):
         if len(train_loader.dataset) > 2e5:
             torch.save(optimizer.state_dict(), "%s/models/optim_state.%d.pth" % (exp_dir, epoch))
 
+        # Update learning rate schedule
         scheduler.step()
 
         print('Epoch-{0} lr: {1}'.format(epoch, optimizer.param_groups[0]['lr']))
@@ -253,7 +256,7 @@ def train(audio_model, train_loader, test_loader, args):
     #         stats=validate_wa(audio_model, test_loader, args, 1, 5)
     #     else:
     #         stats=validate_wa(audio_model, test_loader, args, 6, 25)
-    if args.wa == True:
+    if args.wa == True: # Weight averaging (AFTER all epochs)
         stats = validate_wa(audio_model, test_loader, args, args.wa_start, args.wa_end)
         mAP = np.mean([stat['AP'] for stat in stats])
         mAUC = np.mean([stat['auc'] for stat in stats])
@@ -323,7 +326,7 @@ def validate(audio_model, val_loader, args, epoch):
 
     return stats, loss
 
-def validate_ensemble(args, epoch):
+def validate_ensemble(args, epoch): # Cumulative ensemble
     exp_dir = args.exp_dir
     target = np.loadtxt(exp_dir+'/predictions/target.csv', delimiter=',')
     if epoch == 1:
