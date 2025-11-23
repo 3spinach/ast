@@ -54,9 +54,9 @@ def train(audio_model, train_loader, test_loader, args):
 
     # dataset specific settings
     main_metrics = args.metrics
-    if args.loss == 'BCE':
+    if args.loss == 'BCE': # Multi-label classification, Independent probabilities per class, Sigmoid
         loss_fn = nn.BCEWithLogitsLoss()
-    elif args.loss == 'CE':
+    elif args.loss == 'CE': # Single-label classification, One probability distribution, Softmax
         loss_fn = nn.CrossEntropyLoss()
     warmup = args.warmup
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, list(range(args.lrscheduler_start, 1000, args.lrscheduler_step)),gamma=args.lrscheduler_decay)
